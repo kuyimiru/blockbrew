@@ -1,0 +1,40 @@
+# ---------- 依赖 ----------
+node_modules/
+.pnpm-store/
+
+# ---------- 构建产物 ----------
+dist/
+build/
+*.map
+index-*.js
+
+# ---------- 环境变量与密钥 ----------
+.env
+.env.local
+.env.*.local
+
+# ---------- 数据库（含用户数据，不提交）----------
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.sqlite
+*.sqlite3
+
+# ---------- 媒体（课程作业录屏等，不提交）----------
+*.mp4
+*.mov
+*.avi
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.iml
+
+# ---------- 系统与日志 ----------
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# ---------- 测试目录 ----------
+myskinwebtest/

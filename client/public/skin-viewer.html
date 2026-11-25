@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockBrew 3D Skin Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0B0B0B; font-family: system-ui, sans-serif; }
+    #loading {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #9CA3AF; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">⏳ 加载中...</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "skinview3d": "https://unpkg.com/skinview3d@3.0.0/libs/skinview3d.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import { SkinViewer } from 'skinview3d';
+
+    let viewer = null;
+
+    function createViewer(skinSrc, model) {
+      // Remove previous viewer
+      if (viewer) {
+        try { viewer.dispose(); } catch(e) {}
+        viewer = null;
+      }
+      // Remove old canvas
+      const oldCanvas = document.querySelector('canvas');
+      if (oldCanvas) oldCanvas.remove();
+
+      document.getElementById('loading').style.display = 'block';
+
+      const w = window.innerWidth || 400;
+      const h = window.innerHeight || 400;
+
+      try {
+        viewer = new SkinViewer({
+          canvas: document.createElement('canvas'),
+          width: w,
+          height: h,
+          skin: skinSrc || undefined,
+          model: model || 'steve',
+        });
+
+        const cv = viewer.canvas;
+        if (cv) {
+          cv.style.display = 'block';
+          cv.style.width = '100%';
+          cv.style.height = '100%';
+          document.body.prepend(cv);
+        }
+
+        if (viewer.controls) {
+          viewer.controls.enableDamping = true;
+          viewer.controls.dampingFactor = 0.08;
+          viewer.controls.rotateSpeed = 0.6;
+          viewer.controls.zoomSpeed = 0.8;
+          viewer.controls.panSpeed = 0.5;
+        }
+
+        document.getElementById('loading').style.display = 'none';
+        window.parent.postMessage({ type: 'viewer-ready' }, '*');
+      } catch(e) {
+        document.getElementById('loading').textContent = '⚠️ 加载失败: ' + e.message;
+      }
+    }
+
+    // ── 通信 ──
+    window.addEventListener('message', (event) => {
+      const { type, data } = event.data || {};
+      if (type === 'load-skin' && data) {
+        // data is a data URL (png image)
+        try {
+          const img = new Image();
+          img.onload = () => {
+            createViewer(img, viewer?.playerObject?.slim ? 'alex' : 'steve');
+          };
+          img.onerror = () => console.warn('Skin image load failed');
+          img.src = data;
+        } catch(e) { console.error('load-skin error:', e); }
+      }
+      if (type === 'set-model' && data) {
+        if (viewer?.loadSkin) {
+          // Re-load with new model type
+          const currentSkin = viewer.playerObject?.skin;
+          if (currentSkin) {
+            // Get current texture and re-apply with new model
+            viewer.loadSkin(viewer.playerObject.skin, { model: data });
+          }
+        }
+      }
+      if (type === 'set-outer-layer') {
+        const skin = viewer?.playerObject?.skin;
+        if (skin?.outerLayer) skin.outerLayer.visible = !!data;
+      }
+      if (type === 'set-part-visibility' && data) {
+        const po = viewer?.playerObject;
+        if (!po) return;
+        const map = { head:'head',body:'body',rightArm:'rightArm',leftArm:'leftArm',rightLeg:'rightLeg',leftLeg:'leftLeg' };
+        for (const [pid, vis] of Object.entries(data)) {
+          const part = po[map[pid]];
+          if (part) part.visible = vis;
+        }
+      }
+      if (type === 'reset-view') {
+        if (viewer?.camera && viewer?.controls) {
+          viewer.camera.position.set(0, 3, 6);
+          viewer.camera.lookAt(0, 1.2, 0);
+          viewer.controls.target.set(0, 1.2, 0);
+          viewer.controls.update();
+        }
+      }
+    });
+
+    // ── Resize ──
+    window.addEventListener('resize', () => {
+      if (viewer) {
+        viewer.setSize(window.innerWidth, window.innerHeight);
+      }
+    });
+
+    // ── Start: create empty viewer, wait for skin via postMessage ──
+    createViewer(null, 'steve');
+  </script>
+</body>
+</html>
